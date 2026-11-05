@@ -192,6 +192,11 @@ fieldset { border: 0; padding: 0; }
 .detail-grid dd { margin: 0; font-weight: 500; }
 textarea.input { height: auto; padding: 10px 12px; resize: vertical; }
 .observations { margin-top: 20px; }
+.notes-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.document-list { list-style: none; padding: 0; }
+.document-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.document-list li div { min-width: 0; overflow-wrap: anywhere; }
+.document-upload { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 .alert-warning { background: var(--orange-bg); color: #8a5208; margin-top: 16px; }
 
 .score-box {

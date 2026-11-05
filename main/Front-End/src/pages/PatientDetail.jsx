@@ -2,7 +2,16 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { canSee, deletePatient, deleteScreening, getPatient, listPatientScreenings } from '../services/api'
+import {
+  addPatientDocument,
+  canSee,
+  deletePatient,
+  deleteScreening,
+  getPatient,
+  listPatientScreenings,
+  removePatientDocument,
+  savePatientObservations,
+} from '../services/api'
 import { CONTACT_FIELDS, PERSONAL_FIELDS } from '../data/patientFields'
 import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
@@ -76,6 +85,8 @@ export default function PatientDetail() {
         </dl>
       </section>
 
+      <PatientNotes patient={patient} user={user} />
+
       <h2 className="section-title section-gap">Avaliações</h2>
       <div className="table-wrap">
         <table className="table">
@@ -110,6 +121,121 @@ export default function PatientDetail() {
           </tbody>
         </table>
       </div>
+    </>
+  )
+}
+
+// tipos de arquivo aceitos e tamanho máximo (1 MB)
+const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx']
+const MAX_FILE_SIZE = 1024 * 1024
+
+// confere a extensão do arquivo
+function isAllowedFile(file) {
+  const name = file.name.toLowerCase()
+  return ALLOWED_EXTENSIONS.some((extension) => name.endsWith(extension))
+}
+
+// mostra o tamanho em KB
+function formatSize(size) {
+  return `${Math.ceil(size / 1024)} KB`
+}
+
+// observações e documentos anexados do paciente
+function PatientNotes({ patient, user }) {
+  const [observations, setObservations] = useState(patient.observations || '')
+  const [documents, setDocuments] = useState(patient.documents || [])
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  // salva o texto das observações
+  function handleSaveObservations() {
+    savePatientObservations(patient.id, observations, user)
+    setError('')
+    setMessage('Observações salvas.')
+  }
+
+  // valida, lê e anexa o arquivo escolhido
+  function handleFileChange(event) {
+    const file = event.target.files[0]
+    // limpa o campo para poder escolher o mesmo arquivo de novo
+    event.target.value = ''
+    if (!file) return
+    setMessage('')
+    setError('')
+
+    if (!isAllowedFile(file)) {
+      setError('Envie um arquivo PDF, DOC ou DOCX.')
+      return
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setError('O arquivo passa de 1 MB.')
+      return
+    }
+
+    const reader = new FileReader()
+    // quando terminar de ler, salva o arquivo no paciente
+    reader.onload = () => {
+      try {
+        addPatientDocument(patient.id, { name: file.name, size: file.size, dataUrl: reader.result }, user)
+        setDocuments([...patient.documents])
+        setMessage('Documento anexado.')
+      } catch (err) {
+        setError(err.message)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // remove o documento depois de confirmar
+  function handleRemoveDocument(doc) {
+    if (!window.confirm(`Remover ${doc.name}?`)) return
+    removePatientDocument(patient.id, doc.id, user)
+    setDocuments([...patient.documents])
+    setError('')
+    setMessage('Documento removido.')
+  }
+
+  return (
+    <>
+      <h2 className="section-title section-gap">Observações e documentos</h2>
+      <section className="card">
+        <div className="field">
+          <label htmlFor="patient-observations">Observações</label>
+          <textarea
+            id="patient-observations"
+            className="input"
+            rows={3}
+            value={observations}
+            onChange={(e) => setObservations(e.target.value)}
+          />
+        </div>
+        <div className="notes-actions">
+          <button className="btn btn-outline" onClick={handleSaveObservations}>Salvar observações</button>
+        </div>
+
+        <h3 className="section-subtitle">Documentos</h3>
+        {documents.length === 0 && <p className="muted small">Nenhum documento anexado.</p>}
+        <ul className="document-list">
+          {documents.map((doc) => (
+            <li key={doc.id}>
+              <div>
+                <a href={doc.dataUrl} download={doc.name}>{doc.name}</a>
+                <p className="muted small">{formatSize(doc.size)} · {formatDate(doc.date)} · {doc.uploadedBy}</p>
+              </div>
+              <button className="link-btn link-danger" onClick={() => handleRemoveDocument(doc)}>Remover</button>
+            </li>
+          ))}
+        </ul>
+
+        <div className="document-upload">
+          <label htmlFor="patient-document" className="btn btn-outline">Anexar documento</label>
+          <input id="patient-document" type="file" accept=".pdf,.doc,.docx" hidden onChange={handleFileChange} />
+          <span className="muted small">PDF, DOC ou DOCX, até 1 MB</span>
+        </div>
+
+        {error && <p className="alert alert-error">{error}</p>}
+        {message && <p className="alert alert-success">{message}</p>}
+      </section>
     </>
   )
 }

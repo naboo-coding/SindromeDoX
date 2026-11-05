@@ -153,6 +153,55 @@ export function deletePatient(id, user) {
   save()
 }
 
+// bloqueia quem não pode ver o paciente
+function assertCanSee(user, patient) {
+  if (!patient || !canSee(user, patient)) {
+    throw new Error('Você não tem acesso a este paciente.')
+  }
+}
+
+// salva o texto de observações do paciente
+export function savePatientObservations(patientId, text, user) {
+  const patient = getPatient(patientId)
+  assertCanSee(user, patient)
+  patient.observations = text
+  save()
+}
+
+// anexa um documento (arquivo lido como data URL) ao paciente
+export function addPatientDocument(patientId, file, user) {
+  const patient = getPatient(patientId)
+  assertCanSee(user, patient)
+  if (!patient.documents) {
+    patient.documents = []
+  }
+  const newDocument = {
+    id: crypto.randomUUID(),
+    name: file.name,
+    size: file.size,
+    dataUrl: file.dataUrl,
+    date: today(),
+    uploadedBy: user.name,
+  }
+  patient.documents.push(newDocument)
+  try {
+    save()
+  } catch {
+    // localStorage cheio: desfaz o anexo
+    patient.documents.pop()
+    throw new Error('Não há espaço no navegador para este arquivo. Remova outros documentos e tente de novo.')
+  }
+  return newDocument
+}
+
+// remove um documento do paciente
+export function removePatientDocument(patientId, documentId, user) {
+  const patient = getPatient(patientId)
+  assertCanSee(user, patient)
+  patient.documents = patient.documents.filter((d) => d.id !== documentId)
+  save()
+}
+
 function userName(id) {
   const user = db.users.find((u) => u.id === id)
   return user.name
