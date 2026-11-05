@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import logo from '../assets/logo-instituto.png'
 
 export default function Login() {
   const { login } = useAuth()
@@ -25,7 +26,7 @@ export default function Login() {
   return (
     <div className="auth-split">
       <section className="auth-hero">
-        <span>Instituto Buko Kaesemodel</span>
+        <img src={logo} alt="Instituto Buko Kaesemodel" className="auth-logo" />
         <h1>Triagem da Síndrome do X Frágil</h1>
         <p>Uma avaliação simples e acolhedora para identificar quem pode receber o auxílio do instituto para o teste genético.</p>
       </section>

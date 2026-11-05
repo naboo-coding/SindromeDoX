@@ -2,6 +2,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ROLE_LABEL } from '../utils/format'
+import logo from '../assets/logo-instituto.png'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -14,7 +15,7 @@ export default function Layout() {
       <aside className="sidebar">
         <div className="sidebar-brand">
           <strong>Triagem X Frágil</strong>
-          <span>Instituto Buko Kaesemodel</span>
+          <img src={logo} alt="Instituto Buko Kaesemodel" className="sidebar-logo" />
         </div>
         <nav className="sidebar-nav">
           <NavLink to="/pacientes">Pacientes</NavLink>
