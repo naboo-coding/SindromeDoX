@@ -1,0 +1,18 @@
+{
+  "source": "Romero et al., Fragile X Syndrome in Brazil (medRxiv preprint, 2025), Tables 4 and 5",
+  "thresholds": { "M": 0.56, "F": 0.55 },
+  "symptoms": [
+    { "id": "speechDelay", "label": "Demorou para falar", "group": "behavior", "weights": { "M": null, "F": null } },
+    { "id": "learningDifficulty", "label": "Dificuldades no aprendizado", "group": "behavior", "weights": { "M": null, "F": null } },
+    { "id": "attentionDeficit", "label": "Déficit de atenção", "group": "behavior", "weights": { "M": null, "F": null } },
+    { "id": "intellectualDisability", "label": "Deficiência intelectual", "group": "behavior", "weights": { "M": null, "F": null } },
+    { "id": "hyperactivity", "label": "Hiperatividade", "group": "behavior", "weights": { "M": null, "F": null } },
+    { "id": "aggressiveness", "label": "Agressividade", "group": "behavior", "weights": { "M": null, "F": null } },
+    { "id": "avoidsEyeContact", "label": "Evita contato visual", "group": "behavior", "weights": { "M": null, "F": null } },
+    { "id": "avoidsPhysicalContact", "label": "Evita contato físico", "group": "behavior", "weights": { "M": null, "F": null } },
+    { "id": "repetitiveMovements", "label": "Movimentos intencionais, repetitivos e ritmados", "group": "behavior", "weights": { "M": null, "F": null } },
+    { "id": "hyperextensibility", "label": "Articulações mais flexíveis que o normal (hiperextensibilidade)", "group": "physical", "weights": { "M": null, "F": null } },
+    { "id": "macroorchidism", "label": "Testículos de tamanho maior que o normal", "group": "physical", "sex": "M", "weights": { "M": null } },
+    { "id": "longFace", "label": "Face alongada, mandíbula proeminente e/ou orelhas de abano", "group": "physical", "weights": { "M": null, "F": null } }
+  ]
+}
