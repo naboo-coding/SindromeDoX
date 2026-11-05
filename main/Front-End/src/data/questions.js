@@ -72,6 +72,21 @@ export const FAMILY_QUESTIONS = [
   },
 ]
 
+// sinais físicos registrados sem peso (não entram na pontuação)
+export const UNSCORED_PHYSICAL_SIGNS = [
+  { id: 'flatFeet', label: 'Pés planos (pé chato)' },
+  { id: 'lowMuscleTone', label: 'Tônus muscular baixo (hipotonia)' },
+  { id: 'seizures', label: 'Convulsões' },
+]
+
+// sinais de comportamento registrados sem peso (não entram na pontuação)
+export const UNSCORED_BEHAVIOR_SIGNS = [
+  { id: 'handBiting', label: 'Morde as mãos ou os dedos' },
+  { id: 'repetitiveSpeech', label: 'Fala repetitiva (repete palavras ou frases)' },
+  { id: 'anxiety', label: 'Ansiedade ou timidez excessiva' },
+  { id: 'sensorySensitivity', label: 'Hipersensibilidade a sons, texturas ou toque' },
+]
+
 // opções extras que não entram na pontuação
 export const EXTRA_SIGNS = [
   { id: 'none', label: 'Não apresenta nenhum dos sintomas' },

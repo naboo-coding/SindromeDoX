@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { canSee, createScreening, getPatient, getScreening, listPatients, updateScreening } from '../services/api'
-import { EXTRA_SIGNS, visibleQuestions } from '../data/questions'
+import { EXTRA_SIGNS, UNSCORED_BEHAVIOR_SIGNS, UNSCORED_PHYSICAL_SIGNS, visibleQuestions } from '../data/questions'
 import PageHeader from '../components/PageHeader'
 import { age } from '../utils/format'
 import { isCalculationReady, symptomsFor } from '../utils/score'
@@ -87,9 +87,10 @@ function ScreeningForm({ patient, screening }) {
 
   // sintomas conforme o sexo do paciente
   const symptoms = symptomsFor(patient.sex)
-  const physicalSigns = symptoms.filter((symptom) => symptom.group === 'physical')
+  const scoredPhysicalSigns = symptoms.filter((symptom) => symptom.group === 'physical')
+  const physicalSigns = [...scoredPhysicalSigns, ...UNSCORED_PHYSICAL_SIGNS]
   const behaviorOnlySigns = symptoms.filter((symptom) => symptom.group === 'behavior')
-  const behaviorSigns = [...behaviorOnlySigns, ...EXTRA_SIGNS]
+  const behaviorSigns = [...behaviorOnlySigns, ...UNSCORED_BEHAVIOR_SIGNS, ...EXTRA_SIGNS]
 
   // sem pesos configurados salva sem pontuação
   const ready = isCalculationReady(patient.sex)

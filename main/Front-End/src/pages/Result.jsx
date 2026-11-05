@@ -7,6 +7,10 @@ import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
 import { SEX_LABEL, age, formatDate, formatScore } from '../utils/format'
 import { screeningStatus, symptomsFor } from '../utils/score'
+import { UNSCORED_BEHAVIOR_SIGNS, UNSCORED_PHYSICAL_SIGNS } from '../data/questions'
+
+// sinais registrados que não entram na pontuação
+const UNSCORED_SIGNS = [...UNSCORED_PHYSICAL_SIGNS, ...UNSCORED_BEHAVIOR_SIGNS]
 
 // orientação para cada resultado
 const GUIDANCE = {
@@ -87,6 +91,19 @@ export default function Result() {
             return (
               <li key={symptom.id} className={isPresent ? 'present' : undefined}>
                 <span>{symptom.label}</span>
+                <strong>{isPresent ? 'Presente' : 'Ausente'}</strong>
+              </li>
+            )
+          })}
+        </ul>
+
+        <h3 className="section-subtitle">Outros sinais observados (sem pontuação)</h3>
+        <ul className="symptom-list">
+          {UNSCORED_SIGNS.map((sign) => {
+            const isPresent = answers.signs.includes(sign.id)
+            return (
+              <li key={sign.id} className={isPresent ? 'present' : undefined}>
+                <span>{sign.label}</span>
                 <strong>{isPresent ? 'Presente' : 'Ausente'}</strong>
               </li>
             )
