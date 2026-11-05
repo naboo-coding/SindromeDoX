@@ -36,7 +36,7 @@ function byDateDesc(a, b) {
 }
 
 // admin vê todos, profissional só os que cadastrou
-function canSee(user, patient) {
+export function canSee(user, patient) {
   return user.role === 'admin' || patient.ownerId === user.id
 }
 
@@ -185,6 +185,10 @@ export function listPatientScreenings(patientId) {
 
 export function getScreening(id) {
   const screening = db.screenings.find((s) => s.id === id)
+  // triagem não encontrada
+  if (!screening) {
+    return undefined
+  }
   return withRefs(screening)
 }
 

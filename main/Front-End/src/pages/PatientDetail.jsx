@@ -1,8 +1,8 @@
 // detalhes do paciente e suas avaliações
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { deletePatient, deleteScreening, getPatient, listPatientScreenings } from '../services/api'
+import { canSee, deletePatient, deleteScreening, getPatient, listPatientScreenings } from '../services/api'
 import { CONTACT_FIELDS, PERSONAL_FIELDS } from '../data/patientFields'
 import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
@@ -32,6 +32,11 @@ export default function PatientDetail() {
   const patient = getPatient(id)
   // só admin pode editar e excluir
   const isAdmin = user.role === 'admin'
+
+  // paciente inexistente ou de outro profissional volta para a lista
+  if (!patient || !canSee(user, patient)) {
+    return <Navigate to="/pacientes" replace />
+  }
 
   // exclui o paciente e volta para a lista
   function handleDeletePatient() {

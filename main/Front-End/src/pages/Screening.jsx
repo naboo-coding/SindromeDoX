@@ -1,8 +1,8 @@
 // tela de triagem em 4 etapas
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { createScreening, getPatient, getScreening, listPatients, updateScreening } from '../services/api'
+import { canSee, createScreening, getPatient, getScreening, listPatients, updateScreening } from '../services/api'
 import { EXTRA_SIGNS, visibleQuestions } from '../data/questions'
 import PageHeader from '../components/PageHeader'
 import { age } from '../utils/format'
@@ -12,6 +12,7 @@ const STEPS = ['Histórico familiar', 'Sinais físicos', 'Comportamento e desenv
 
 export default function Screening() {
   const [params, setParams] = useSearchParams()
+  const { user } = useAuth()
   const patientId = params.get('paciente')
   const screeningId = params.get('avaliacao')
 
@@ -22,10 +23,19 @@ export default function Screening() {
   // edita, cria nova ou escolhe o paciente
   if (screeningId) {
     const screening = getScreening(screeningId)
+    // só admin edita, e a triagem precisa existir
+    if (user.role !== 'admin' || !screening) {
+      return <Navigate to="/pacientes" replace />
+    }
     return <ScreeningForm key={screeningId} patient={screening.patient} screening={screening} />
   }
   if (patientId) {
-    return <ScreeningForm key={patientId} patient={getPatient(patientId)} />
+    const patient = getPatient(patientId)
+    // paciente inexistente ou de outro profissional volta para a lista
+    if (!patient || !canSee(user, patient)) {
+      return <Navigate to="/pacientes" replace />
+    }
+    return <ScreeningForm key={patientId} patient={patient} />
   }
   return <PatientPicker onPick={handlePickPatient} />
 }

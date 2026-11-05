@@ -1,7 +1,8 @@
 // resultado da triagem
 import { useEffect } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { getScreening } from '../services/api'
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { canSee, getScreening } from '../services/api'
 import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
 import { SEX_LABEL, age, formatDate, formatScore } from '../utils/format'
@@ -27,18 +28,27 @@ const GUIDANCE = {
 export default function Result() {
   const { id } = useParams()
   const [params] = useSearchParams()
+  const { user } = useAuth()
   const screening = getScreening(id)
+  // triagem existe e é de um paciente que o usuário pode ver
+  const allowed = Boolean(screening) && canSee(user, screening.patient)
+
+  // com ?imprimir na URL abre a impressão
+  useEffect(() => {
+    if (allowed && params.has('imprimir')) {
+      window.print()
+    }
+  }, [allowed, params])
+
+  // sem permissão volta para a lista
+  if (!allowed) {
+    return <Navigate to="/pacientes" replace />
+  }
+
   const { patient, answers } = screening
   const status = screeningStatus(screening)
   const guidance = GUIDANCE[status]
   const hasOtherSigns = answers.signs.includes('other')
-
-  // com ?imprimir na URL abre a impressão
-  useEffect(() => {
-    if (params.has('imprimir')) {
-      window.print()
-    }
-  }, [params])
 
   // imprime ou salva em PDF pelo navegador
   function handlePrint() {
