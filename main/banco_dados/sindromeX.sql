@@ -10,8 +10,8 @@ CREATE TABLE pessoa (
     cpf CHAR(11) NOT NULL UNIQUE,            -- somente dígitos
     cep CHAR(8),                             -- somente dígitos
     email VARCHAR(150) NOT NULL UNIQUE,
-    senha_hash VARCHAR(255) NOT NULL,        -- hash (bcrypt/argon2), nunca a senha pura
-    ativo BOOLEAN NOT NULL DEFAULT TRUE,     -- soft delete
+    senha_hash VARCHAR(255) NOT NULL,        -- hash, nunca a senha pura
+    ativo BOOLEAN NOT NULL DEFAULT TRUE,     -- delete
     criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
  
