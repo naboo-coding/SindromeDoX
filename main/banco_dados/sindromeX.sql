@@ -1,4 +1,4 @@
--- Requer MySQL 8.0.16+ (CHECK é aplicado a partir dessa versão)
+DROP DATABASE IF EXISTS SindromeX;
 CREATE DATABASE IF NOT EXISTS SindromeX
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_0900_ai_ci;
