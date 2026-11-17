@@ -4,14 +4,14 @@ CREATE DATABASE IF NOT EXISTS SindromeX
     COLLATE utf8mb4_0900_ai_ci;
 USE SindromeX;
  
--- 1. Dados gerais das pessoas
+-- Dados gerais das pessoas -- 
 CREATE TABLE pessoa (
     id_pessoa INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(130) NOT NULL,
     cpf CHAR(11) NOT NULL UNIQUE,            -- somente dígitos
     cep CHAR(8),                             -- somente dígitos
     email VARCHAR(150) NOT NULL UNIQUE,
-    senha_hash VARCHAR(255) NOT NULL,        -- hash (bcrypt/argon2), nunca a senha pura
+    senha_hash VARCHAR(255) NOT NULL,        -- hash nunca a senha pura
     ativo BOOLEAN NOT NULL DEFAULT TRUE,     -- soft delete
     criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -20,7 +20,7 @@ CREATE TABLE pessoa (
     CONSTRAINT chk_pessoa_cep CHECK (cep IS NULL OR cep REGEXP '^[0-9]{8}$')
 );
  
--- 2. Funcionários
+-- Funcionários --
 CREATE TABLE funcionario (
     id_funcionario INT PRIMARY KEY,
     acesso_total BOOLEAN NOT NULL DEFAULT FALSE,
@@ -31,7 +31,7 @@ CREATE TABLE funcionario (
         ON DELETE RESTRICT
 );
  
--- 3. Responsáveis pelos pacientes
+-- Responsáveis pelos pacientes --
 CREATE TABLE responsavel_paciente (
     id_responsavel INT PRIMARY KEY,
  
@@ -41,7 +41,7 @@ CREATE TABLE responsavel_paciente (
         ON DELETE RESTRICT
 );
  
--- 4. Pacientes
+-- Pacientes --
 CREATE TABLE paciente (
     id_paciente INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(130) NOT NULL,
@@ -60,7 +60,7 @@ CREATE TABLE paciente (
  
 CREATE INDEX idx_paciente_responsavel ON paciente(id_responsavel);
  
--- 5. Triagens
+-- Triagens --
 CREATE TABLE triagem (
     id_triagem INT AUTO_INCREMENT PRIMARY KEY,
     hora_triagem DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -82,7 +82,7 @@ CREATE TABLE triagem (
 CREATE INDEX idx_triagem_paciente ON triagem(id_paciente, hora_triagem);
 CREATE INDEX idx_triagem_funcionario ON triagem(id_funcionario);
  
--- 6. Resultados das triagens (1:1 com triagem)
+-- Resultados das triagens (1:1 com triagem) --
 CREATE TABLE resultado_triagem (
     id_resultado_triagem INT AUTO_INCREMENT PRIMARY KEY,
     pontuacao INT NOT NULL,                  -- soma do checklist
