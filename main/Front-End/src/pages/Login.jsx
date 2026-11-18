@@ -1,22 +1,27 @@
 // tela de login
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import logo from '../assets/logo-instituto.png'
 
 export default function Login() {
-  const { login } = useAuth()
+  const { usuario, carregando, login } = useAuth()
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
-  // faz o login e abre a lista de pacientes
-  function handleSubmit(event) {
+  // quem já está logado vai direto para os pacientes
+  if (usuario && !carregando) {
+    return <Navigate to="/pacientes" replace />
+  }
+
+  // faz o login no back e abre a lista de pacientes
+  async function handleSubmit(event) {
     event.preventDefault()
     try {
-      login(email, password)
+      await login(email, password)
       navigate('/pacientes')
     } catch (err) {
       setError(err.message)

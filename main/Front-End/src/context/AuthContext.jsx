@@ -1,28 +1,33 @@
 // contexto com o usuário logado e as funções de login
-import { createContext, useContext, useState } from 'react'
-import * as api from '../services/api'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { buscarSessao, entrar, sair } from '../services/api'
 
 const AuthContext = createContext(null)
 
 // fornece o usuário logado para todas as telas
 export function AuthProvider({ children }) {
-  // carrega a sessão salva
-  const [user, setUser] = useState(api.getSessionUser)
+  const [usuario, setUsuario] = useState(null)
+  const [carregando, setCarregando] = useState(true)
 
-  function login(email, password) {
-    setUser(api.login(email, password))
+  // ao abrir o site, pergunta ao back se já existe uma sessão
+  useEffect(() => {
+    buscarSessao()
+      .then((dados) => setUsuario(dados))
+      .catch(() => setUsuario(null))
+      .finally(() => setCarregando(false))
+  }, [])
+
+  async function login(email, senha) {
+    const dados = await entrar(email, senha)
+    setUsuario(dados)
   }
 
-  function register(data) {
-    setUser(api.register(data))
+  async function logout() {
+    await sair()
+    setUsuario(null)
   }
 
-  function logout() {
-    api.logout()
-    setUser(null)
-  }
-
-  const value = { user, login, register, logout }
+  const value = { usuario, carregando, login, logout }
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

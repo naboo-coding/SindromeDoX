@@ -4,39 +4,34 @@ Interface do sistema de triagem, feita com React, JavaScript e CSS (Vite).
 
 ## Como rodar
 
-Requer [Node.js](https://nodejs.org) (versão LTS).
+Requer [Node.js](https://nodejs.org) (versão LTS) e o back rodando (veja `main/Back-End/README.md`).
 
-```bash
-cd main/Front-End
-npm install
-npm run dev
-```
+1. Em um terminal, rode o back: dentro de `main/Back-End`, `python app.py` (porta 5000).
+2. Em outro terminal:
+   ```bash
+   cd main/Front-End
+   npm install
+   npm run dev
+   ```
+3. Abra o endereço mostrado no terminal (normalmente http://localhost:5173).
 
-Depois, abra o endereço mostrado no terminal (normalmente http://localhost:5173).
+O Vite repassa tudo que começa com `/api` para o back (`vite.config.js`), então front e back funcionam como um site só.
 
-## API simulada (provisória)
+## Contas
 
-Enquanto o backend em Flask não está pronto, os dados ficam no `localStorage` do navegador, por meio de uma API simulada em `src/services/api.js`. As telas só conversam com esse arquivo, então, quando o backend existir, basta trocar as funções dele por chamadas HTTP.
+- O primeiro administrador é criado com `python criar_admin.py` no back.
+- Qualquer pessoa pode se cadastrar pela tela "Criar conta": a conta nasce como **responsável** e precisa confirmar o e-mail. O link de confirmação aparece no terminal do back.
+- O administrador muda o perfil das pessoas na tela "Usuários" (responsável, profissional ou administrador).
 
-Os dados de exemplo ficam em `src/data/seed.js` e devem virar o script de seed do banco no backend.
+## Estrutura
 
-Para apagar os dados de teste, limpe a chave `xfragil-db-v2` do `localStorage` (F12 → Application → Local Storage).
-
-## Contas de teste
-
-Senha de todas: `123456`.
-
-| E-mail | Perfil |
-|---|---|
-| marina@institutobuko.org | Profissional: cadastra pacientes e triagens e vê só os próprios pacientes |
-| carlos@institutobuko.org | Administrador: vê tudo, edita, exclui e gerencia usuários |
-| luz@institutobuko.org | Administrador |
-| paula@institutobuko.org | Profissional desativada (o login deve ser bloqueado) |
+- `src/pages/` uma tela por arquivo
+- `src/services/api.js` uma função para cada rota do back (contrato em `main/Back-End/API.md`)
+- `src/context/AuthContext.jsx` usuário logado
+- `src/components.jsx` menu lateral, cabeçalho e etiqueta de status
+- `src/data.js` perguntas da triagem, sinais extras e campos do cadastro de paciente
+- `src/utils.js` formatação de datas, idade, pontuação e mensagens de validação em português
 
 ## Pontuação da triagem
 
-Os sintomas, os pesos e os limiares estão em `src/config/checklist.json`, com base em Romero et al., *Fragile X Syndrome in Brazil* (medRxiv, 2025), Tabelas 4 e 5.
-
-- Os pesos ainda estão `null`. Enquanto algum peso do sexo do paciente estiver vazio, o cálculo fica bloqueado e a triagem é salva como "Cálculo pendente".
-- Regra do artigo: suspeita quando `pontuação >= limiar` (0,56 para M e 0,55 para F).
-- Decisão da equipe: o cálculo e os pesos vão para o backend. O front deve apenas enviar os sintomas marcados e exibir a pontuação devolvida pelo servidor.
+O cálculo é feito no back, com os pesos e limiares guardados no banco (checklist baseado em Romero et al., *Fragile X Syndrome in Brazil*, medRxiv, 2025, Tabelas 4 e 5). Enquanto os pesos não forem preenchidos, a triagem é salva como "Cálculo pendente".

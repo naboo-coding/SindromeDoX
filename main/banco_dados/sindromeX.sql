@@ -468,9 +468,9 @@ FROM (
 
 
 -- =====================================================================
--- DADOS INICIAIS: checklist (pesos AINDA NÃO DEFINIDOS)
--- Fonte: Romero et al., Fragile X Syndrome in Brazil (medRxiv, 2025), Tabelas 4 e 5.
--- TODO: preencher peso_m / peso_f e confirmar os limiares com o Instituto.
+-- DADOS INICIAIS: checklist
+-- Fonte: Romero et al., Fragile X Syndrome in Brazil (medRxiv, 2025),
+-- Tabela 4 (pesos masculinos) e Tabela 5 (pesos femininos).
 -- =====================================================================
 
 INSERT INTO checklist_versao (fonte, limiar_m, limiar_f, ativa)
@@ -478,19 +478,19 @@ VALUES ('Romero et al., Fragile X Syndrome in Brazil (medRxiv, 2025), Tabelas 4 
 
 SET @versao = LAST_INSERT_ID();
 
-INSERT INTO checklist_sintoma (id_checklist_versao, codigo, rotulo, grupo, sexo_restrito) VALUES
-    (@versao, 'speechDelay',            'Demorou para falar',                                              'comportamento', NULL),
-    (@versao, 'learningDifficulty',     'Dificuldades no aprendizado',                                     'comportamento', NULL),
-    (@versao, 'attentionDeficit',       'Déficit de atenção',                                              'comportamento', NULL),
-    (@versao, 'intellectualDisability', 'Deficiência intelectual',                                         'comportamento', NULL),
-    (@versao, 'hyperactivity',          'Hiperatividade',                                                  'comportamento', NULL),
-    (@versao, 'aggressiveness',         'Agressividade',                                                   'comportamento', NULL),
-    (@versao, 'avoidsEyeContact',       'Evita contato visual',                                            'comportamento', NULL),
-    (@versao, 'avoidsPhysicalContact',  'Evita contato físico',                                            'comportamento', NULL),
-    (@versao, 'repetitiveMovements',    'Movimentos intencionais, repetitivos e ritmados',                 'comportamento', NULL),
-    (@versao, 'hyperextensibility',     'Articulações mais flexíveis que o normal (hiperextensibilidade)', 'fisico',        NULL),
-    (@versao, 'macroorchidism',         'Testículos de tamanho maior que o normal',                        'fisico',        'M'),
-    (@versao, 'longFace',               'Face alongada, mandíbula proeminente e/ou orelhas de abano',      'fisico',        NULL);
+INSERT INTO checklist_sintoma (id_checklist_versao, codigo, rotulo, grupo, sexo_restrito, peso_m, peso_f) VALUES
+    (@versao, 'speechDelay',            'Demorou para falar',                                              'comportamento', NULL, 0.14, 0.01),
+    (@versao, 'learningDifficulty',     'Dificuldades no aprendizado',                                     'comportamento', NULL, 0.18, 0.28),
+    (@versao, 'attentionDeficit',       'Déficit de atenção',                                              'comportamento', NULL, 0.17, 0.12),
+    (@versao, 'intellectualDisability', 'Deficiência intelectual',                                         'comportamento', NULL, 0.32, 0.20),
+    (@versao, 'hyperactivity',          'Hiperatividade',                                                  'comportamento', NULL, 0.12, 0.04),
+    (@versao, 'aggressiveness',         'Agressividade',                                                   'comportamento', NULL, 0.01, 0.02),
+    (@versao, 'avoidsEyeContact',       'Evita contato visual',                                            'comportamento', NULL, 0.06, 0.08),
+    (@versao, 'avoidsPhysicalContact',  'Evita contato físico',                                            'comportamento', NULL, 0.04, 0.07),
+    (@versao, 'repetitiveMovements',    'Movimentos intencionais, repetitivos e ritmados',                 'comportamento', NULL, 0.17, 0.05),
+    (@versao, 'hyperextensibility',     'Articulações mais flexíveis que o normal (hiperextensibilidade)', 'fisico',        NULL, 0.19, 0.04),
+    (@versao, 'macroorchidism',         'Testículos de tamanho maior que o normal',                        'fisico',        'M',  0.26, NULL),
+    (@versao, 'longFace',               'Face alongada, mandíbula proeminente e/ou orelhas de abano',      'fisico',        NULL, 0.29, 0.09);
 
 
 -- =====================================================================

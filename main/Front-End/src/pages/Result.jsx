@@ -1,29 +1,29 @@
 // resultado da triagem
-import { useEffect } from 'react'
-import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { canSee, getScreening } from '../services/api'
-import PageHeader from '../components/PageHeader'
-import StatusBadge from '../components/StatusBadge'
-import { SEX_LABEL, age, formatDate, formatScore } from '../utils/format'
-import { screeningStatus, symptomsFor } from '../utils/score'
-import { UNSCORED_BEHAVIOR_SIGNS, UNSCORED_PHYSICAL_SIGNS } from '../data/questions'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { buscarChecklist, buscarTriagem } from '../services/api'
+import { PageHeader, StatusBadge } from '../components'
+import { SEX_LABEL, age, formatDate, formatScore } from '../utils'
+import { UNSCORED_BEHAVIOR_SIGNS, UNSCORED_PHYSICAL_SIGNS } from '../data'
 
 // sinais registrados que não entram na pontuação
 const UNSCORED_SIGNS = [...UNSCORED_PHYSICAL_SIGNS, ...UNSCORED_BEHAVIOR_SIGNS]
 
-// orientação para cada resultado
+// orientação e classe do card para cada status do back
 const GUIDANCE = {
-  met: {
+  atingido: {
+    className: 'result-met',
     title: 'Indicada pesquisa por PCR para SXF',
     text: 'A pontuação atingiu o limite de referência. Recomenda-se encaminhar o paciente para o teste genético confirmatório.',
   },
-  notMet: {
+  nao_atingido: {
+    className: 'result-notMet',
     title: 'Pesquisa PCR para SXF não indicada',
     text: 'A pontuação ficou abaixo do limite de referência. Isso não exclui a síndrome: se surgirem novos sinais ou houver histórico familiar, refaça a triagem ou procure um especialista.',
   },
   // pesos ainda não configurados
-  pending: {
+  pendente: {
+    className: 'result-pending',
     title: 'Pontuação ainda não calculada',
     text: 'Os pesos do checklist ainda não foram configurados. As respostas foram salvas. Depois que os pesos forem definidos, um administrador pode editar a avaliação para gerar a pontuação.',
   },
@@ -32,27 +32,48 @@ const GUIDANCE = {
 export default function Result() {
   const { id } = useParams()
   const [params] = useSearchParams()
-  const { user } = useAuth()
-  const screening = getScreening(id)
-  // triagem existe e é de um paciente que o usuário pode ver
-  const allowed = Boolean(screening) && canSee(user, screening.patient)
+  const navigate = useNavigate()
+  const [screening, setScreening] = useState(null)
+  const [checklist, setChecklist] = useState(null)
 
-  // com ?imprimir na URL abre a impressão
+  // carrega a triagem e o checklist do back
   useEffect(() => {
-    if (allowed && params.has('imprimir')) {
+    async function load() {
+      try {
+        setScreening(await buscarTriagem(id))
+        setChecklist(await buscarChecklist())
+      } catch (err) {
+        // sem acesso ou não encontrada volta para a lista
+        if (err.status === 403 || err.status === 404) {
+          navigate('/pacientes', { replace: true })
+        }
+      }
+    }
+    load()
+  }, [id, navigate])
+
+  // com ?imprimir na URL abre a impressão depois de carregar
+  const loaded = Boolean(screening && checklist)
+  useEffect(() => {
+    if (loaded && params.has('imprimir')) {
       window.print()
     }
-  }, [allowed, params])
+  }, [loaded, params])
 
-  // sem permissão volta para a lista
-  if (!allowed) {
-    return <Navigate to="/pacientes" replace />
+  // espera os dados chegarem
+  if (!loaded) {
+    return null
   }
 
-  const { patient, answers } = screening
-  const status = screeningStatus(screening)
-  const guidance = GUIDANCE[status]
+  const patient = screening.paciente
+  const answers = screening.respostas
+  const guidance = GUIDANCE[screening.status]
   const hasOtherSigns = answers.signs.includes('other')
+
+  // sintomas do checklist que valem para o sexo do paciente
+  const symptoms = checklist.sintomas.filter(
+    (symptom) => symptom.sexo_restrito === null || symptom.sexo_restrito === patient.sexo_biologico
+  )
 
   // imprime ou salva em PDF pelo navegador
   function handlePrint() {
@@ -62,23 +83,23 @@ export default function Result() {
   return (
     <>
       <PageHeader
-        crumbs={['Pacientes', patient.name, 'Resultado']}
+        crumbs={['Pacientes', patient.nome, 'Resultado']}
         title="Resultado da triagem"
-        subtitle={`Paciente: ${patient.name} · ${age(patient.birthDate)} anos · ${SEX_LABEL[patient.sex]}`}
+        subtitle={`Paciente: ${patient.nome} · ${age(patient.data_nascimento)} anos · ${SEX_LABEL[patient.sexo_biologico]}`}
       />
 
-      <section className={`card result-card result-${status}`}>
+      <section className={`card result-card ${guidance.className}`}>
         <div className="score-box">
-          <strong>{formatScore(screening.score)}</strong>
+          <strong>{formatScore(screening.pontuacao)}</strong>
           <span>pontuação</span>
-          <span className="score-threshold">Limite de referência: {formatScore(screening.threshold)}</span>
+          <span className="score-threshold">Limite de referência: {formatScore(screening.limiar)}</span>
         </div>
         <div className="result-body">
-          <StatusBadge screening={screening} />
+          <StatusBadge status={screening.status} />
           <h2 className="result-title">{guidance.title}</h2>
           <p>{guidance.text}</p>
           <p className="result-meta">
-            Avaliação de {formatDate(screening.date)} · Profissional responsável: {screening.professional}
+            Avaliação de {formatDate(screening.hora_triagem)} · Profissional responsável: {screening.aplicada_por}
           </p>
         </div>
       </section>
@@ -86,11 +107,11 @@ export default function Result() {
       <section className="card section-gap">
         <h2 className="section-title">Sintomas registrados</h2>
         <ul className="symptom-list">
-          {symptomsFor(patient.sex).map((symptom) => {
-            const isPresent = answers.signs.includes(symptom.id)
+          {symptoms.map((symptom) => {
+            const isPresent = answers.signs.includes(symptom.codigo)
             return (
-              <li key={symptom.id} className={isPresent ? 'present' : undefined}>
-                <span>{symptom.label}</span>
+              <li key={symptom.codigo} className={isPresent ? 'present' : undefined}>
+                <span>{symptom.rotulo}</span>
                 <strong>{isPresent ? 'Presente' : 'Ausente'}</strong>
               </li>
             )
@@ -100,10 +121,10 @@ export default function Result() {
         <h3 className="section-subtitle">Outros sinais observados (sem pontuação)</h3>
         <ul className="symptom-list">
           {UNSCORED_SIGNS.map((sign) => {
-            const isPresent = answers.signs.includes(sign.id)
+            const isPresent = answers.signs.includes(sign.codigo)
             return (
-              <li key={sign.id} className={isPresent ? 'present' : undefined}>
-                <span>{sign.label}</span>
+              <li key={sign.codigo} className={isPresent ? 'present' : undefined}>
+                <span>{sign.rotulo}</span>
                 <strong>{isPresent ? 'Presente' : 'Ausente'}</strong>
               </li>
             )
@@ -123,7 +144,7 @@ export default function Result() {
       <div className="result-actions no-print">
         <button className="btn btn-outline" onClick={handlePrint}>Imprimir</button>
         <button className="btn btn-outline" onClick={handlePrint}>Baixar PDF</button>
-        <Link to={`/pacientes/${patient.id}`} className="btn">Ver paciente</Link>
+        <Link to={`/pacientes/${screening.id_paciente}`} className="btn">Ver paciente</Link>
       </div>
     </>
   )

@@ -1,21 +1,24 @@
-// tela de cadastro de usuário
+// tela de cadastro do responsável
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { Link } from 'react-router-dom'
+import { cadastrar } from '../services/api'
+import { CPF_PATTERN, PHONE_PATTERN, maskCpf, maskPhone, onlyDigits } from '../utils'
 
 export default function Register() {
-  const { register } = useAuth()
-  const navigate = useNavigate()
-
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [cpf, setCpf] = useState('')
+  const [telefone, setTelefone] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [aceite, setAceite] = useState(false)
   const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
 
-  // envia o formulário de cadastro
-  function handleSubmit(event) {
+  // envia o cadastro para o back
+  async function handleSubmit(event) {
     event.preventDefault()
+    setError('')
 
     // confere se as senhas são iguais
     if (password !== confirm) {
@@ -24,11 +27,33 @@ export default function Register() {
     }
 
     try {
-      register({ name, email, password })
-      navigate('/pacientes')
+      await cadastrar({
+        nome: name,
+        email,
+        senha: password,
+        cpf: onlyDigits(cpf),
+        telefone: onlyDigits(telefone),
+        aceite_termos: aceite,
+      })
+      setDone(true)
     } catch (err) {
       setError(err.message)
     }
+  }
+
+  // depois do cadastro mostra o aviso de confirmação do e-mail
+  if (done) {
+    return (
+      <div className="auth-center">
+        <div className="auth-form">
+          <div>
+            <h2>Criar conta</h2>
+          </div>
+          <p className="alert alert-success">Cadastro feito! Enviamos um link de confirmação para o seu e-mail. Confirme para poder entrar.</p>
+          <p className="auth-footer"><Link to="/login">Ir para o login</Link></p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -65,6 +90,35 @@ export default function Register() {
         </div>
         <div className="row-2">
           <div className="field">
+            <label htmlFor="cpf">CPF</label>
+            <input
+              id="cpf"
+              name="cpf"
+              className="input"
+              placeholder="000.000.000-00"
+              required
+              inputMode="numeric"
+              pattern={CPF_PATTERN}
+              value={cpf}
+              onChange={(e) => setCpf(maskCpf(e.target.value))}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="telefone">Telefone</label>
+            <input
+              id="telefone"
+              name="telefone"
+              type="tel"
+              className="input"
+              required
+              pattern={PHONE_PATTERN}
+              value={telefone}
+              onChange={(e) => setTelefone(maskPhone(e.target.value))}
+            />
+          </div>
+        </div>
+        <div className="row-2">
+          <div className="field">
             <label htmlFor="password">Senha</label>
             <input
               id="password"
@@ -93,7 +147,7 @@ export default function Register() {
         </div>
         {/* aceite da LGPD */}
         <label className="checkbox-line">
-          <input type="checkbox" required />
+          <input type="checkbox" required checked={aceite} onChange={(e) => setAceite(e.target.checked)} />
           Li e aceito o uso dos meus dados conforme a política de privacidade (LGPD).
         </label>
         {error && <p className="alert alert-error">{error}</p>}

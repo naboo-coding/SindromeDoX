@@ -1,283 +1,122 @@
-// API simulada com localStorage, temporária até o backend em Flask ficar pronto
-import seed from '../data/seed'
-import { THRESHOLDS, calculateScore } from '../utils/score'
-import { today } from '../utils/format'
+// funções que conversam com o back (main/Back-End), uma para cada rota do API.md
 
-// chaves usadas no localStorage
-const DB_KEY = 'xfragil-db-v2'
-const SESSION_KEY = 'xfragil-session'
-
-// carrega o banco salvo ou uma cópia do seed
-function loadDatabase() {
-  const savedDatabase = JSON.parse(localStorage.getItem(DB_KEY))
-  if (savedDatabase !== null) {
-    return savedDatabase
-  }
-  return JSON.parse(JSON.stringify(seed))
-}
-
-const db = loadDatabase()
-
-// salva o banco no localStorage
-function save() {
-  localStorage.setItem(DB_KEY, JSON.stringify(db))
-}
-
-// remove a senha do usuário
-function publicUser(user) {
-  const userWithoutPassword = { ...user }
-  delete userWithoutPassword.password
-  return userWithoutPassword
-}
-
-// ordena da data mais recente para a mais antiga
-function byDateDesc(a, b) {
-  return b.date.localeCompare(a.date)
-}
-
-// admin vê todos, profissional só os que cadastrou
-export function canSee(user, patient) {
-  return user.role === 'admin' || patient.ownerId === user.id
-}
-
-// só admin pode editar ou excluir
-function assertAdmin(user) {
-  if (user.role !== 'admin') {
-    throw new Error('Apenas administradores podem editar ou excluir.')
-  }
-}
-
-// busca o usuário logado
-export function getSessionUser() {
-  const loggedUserId = localStorage.getItem(SESSION_KEY)
-  const user = db.users.find((u) => u.id === loggedUserId)
-  if (user) {
-    return publicUser(user)
-  }
-  return null
-}
-
-// faz o login e salva a sessão
-export function login(email, password) {
-  const user = db.users.find((u) => u.email === email && u.password === password)
-  if (!user) {
-    throw new Error('E-mail ou senha incorretos.')
-  }
-  if (!user.active) {
-    throw new Error('Usuário desativado. Fale com um administrador.')
-  }
-  localStorage.setItem(SESSION_KEY, user.id)
-  return publicUser(user)
-}
-
-export function logout() {
-  localStorage.removeItem(SESSION_KEY)
-}
-
-// cadastro público, sempre como profissional
-export function register({ name, email, password }) {
-  saveUser({ name, email, password, role: 'professional' })
-  return login(email, password)
-}
-
-export function listUsers() {
-  return db.users.map(publicUser)
-}
-
-// cria ou edita um usuário
-export function saveUser(data) {
-  const emailAlreadyUsed = db.users.some((u) => u.email === data.email && u.id !== data.id)
-  if (emailAlreadyUsed) {
-    throw new Error('E-mail já cadastrado.')
+// faz a requisição e devolve o JSON; se der erro, lança a mensagem que o back mandou
+async function chamar(metodo, caminho, corpo) {
+  const opcoes = { method: metodo, headers: {} }
+  if (corpo !== undefined) {
+    opcoes.headers['Content-Type'] = 'application/json'
+    opcoes.body = JSON.stringify(corpo)
   }
 
-  if (data.id) {
-    const user = db.users.find((u) => u.id === data.id)
-    // senha vazia mantém a atual
-    const password = data.password || user.password
-    Object.assign(user, data, { password: password })
-  } else {
-    // usuário novo começa ativo
-    db.users.push({ ...data, id: crypto.randomUUID(), active: true })
+  const resposta = await fetch('/api' + caminho, opcoes)
+  const dados = await resposta.json().catch(() => ({}))
+
+  if (!resposta.ok) {
+    const erro = new Error(dados.erro || 'Não foi possível falar com o servidor.')
+    erro.status = resposta.status
+    throw erro
   }
-  save()
+  return dados
 }
 
-// ativa ou desativa um usuário
-export function toggleUser(id) {
-  const user = db.users.find((u) => u.id === id)
-  user.active = !user.active
-  save()
+// login, cadastro e senha
+export function buscarSessao() {
+  return chamar('GET', '/sessao')
+}
+export function entrar(email, senha) {
+  return chamar('POST', '/login', { email, senha })
+}
+export function sair() {
+  return chamar('POST', '/logout')
+}
+export function cadastrar(dados) {
+  return chamar('POST', '/cadastro', dados)
+}
+export function confirmarEmail(token) {
+  return chamar('POST', '/confirmar-email', { token })
+}
+export function esqueciSenha(email) {
+  return chamar('POST', '/esqueci-senha', { email })
+}
+export function novaSenha(token, senha) {
+  return chamar('POST', '/nova-senha', { token, senha })
 }
 
-// triagem mais recente do paciente
-function lastScreeningOf(patientId) {
-  const patientScreenings = db.screenings.filter((s) => s.patientId === patientId)
-  patientScreenings.sort(byDateDesc)
-  return patientScreenings[0]
+// usuários (só admin)
+export function listarUsuarios() {
+  return chamar('GET', '/usuarios')
+}
+export function criarUsuario(dados) {
+  return chamar('POST', '/usuarios', dados)
+}
+export function editarUsuario(id, dados) {
+  return chamar('PUT', `/usuarios/${id}`, dados)
+}
+export function mudarAtivo(id, ativo) {
+  return chamar('PATCH', `/usuarios/${id}/ativo`, { ativo })
 }
 
-// lista os pacientes visíveis com a última triagem
-export function listPatients(user) {
-  const visiblePatients = db.patients.filter((p) => canSee(user, p))
-  const patientsWithLastScreening = visiblePatients.map((p) => {
-    return { ...p, lastScreening: lastScreeningOf(p.id) }
-  })
-  return patientsWithLastScreening
+// checklist de sintomas
+export function buscarChecklist() {
+  return chamar('GET', '/checklist')
 }
 
-export function getPatient(id) {
-  return db.patients.find((p) => p.id === id)
+// pacientes
+export function listarPacientes() {
+  return chamar('GET', '/pacientes')
+}
+export function buscarPaciente(id) {
+  return chamar('GET', `/pacientes/${id}`)
+}
+export function criarPaciente(dados) {
+  return chamar('POST', '/pacientes', dados)
+}
+export function editarPaciente(id, dados) {
+  return chamar('PUT', `/pacientes/${id}`, dados)
+}
+export function excluirPaciente(id) {
+  return chamar('DELETE', `/pacientes/${id}`)
+}
+export function salvarObservacoes(id, observacoes) {
+  return chamar('PUT', `/pacientes/${id}/observacoes`, { observacoes })
 }
 
-// cadastra um paciente com o usuário como dono
-export function createPatient(data, user) {
-  const patient = { ...data, id: crypto.randomUUID(), ownerId: user.id }
-  db.patients.push(patient)
-  save()
-  return patient
+// documentos do paciente
+export function listarDocumentos(idPaciente) {
+  return chamar('GET', `/pacientes/${idPaciente}/documentos`)
+}
+export async function enviarDocumento(idPaciente, arquivo) {
+  // arquivo vai como formulário, não como JSON
+  const formulario = new FormData()
+  formulario.append('arquivo', arquivo)
+  const resposta = await fetch(`/api/pacientes/${idPaciente}/documentos`, { method: 'POST', body: formulario })
+  const dados = await resposta.json().catch(() => ({}))
+  if (!resposta.ok) throw new Error(dados.erro || 'Não foi possível enviar o arquivo.')
+  return dados
+}
+export function excluirDocumento(id) {
+  return chamar('DELETE', `/documentos/${id}`)
+}
+export function linkDocumento(id) {
+  return `/api/documentos/${id}`
 }
 
-export function updatePatient(id, data, user) {
-  assertAdmin(user)
-  const patient = getPatient(id)
-  Object.assign(patient, data)
-  save()
+// triagens
+export function listarTriagens() {
+  return chamar('GET', '/triagens')
 }
-
-// exclui o paciente e as triagens dele
-export function deletePatient(id, user) {
-  assertAdmin(user)
-  db.patients = db.patients.filter((p) => p.id !== id)
-  db.screenings = db.screenings.filter((s) => s.patientId !== id)
-  save()
+export function listarTriagensDoPaciente(idPaciente) {
+  return chamar('GET', `/pacientes/${idPaciente}/triagens`)
 }
-
-// bloqueia quem não pode ver o paciente
-function assertCanSee(user, patient) {
-  if (!patient || !canSee(user, patient)) {
-    throw new Error('Você não tem acesso a este paciente.')
-  }
+export function buscarTriagem(id) {
+  return chamar('GET', `/triagens/${id}`)
 }
-
-// salva o texto de observações do paciente
-export function savePatientObservations(patientId, text, user) {
-  const patient = getPatient(patientId)
-  assertCanSee(user, patient)
-  patient.observations = text
-  save()
+export function criarTriagem(idPaciente, respostas) {
+  return chamar('POST', '/triagens', { id_paciente: idPaciente, respostas })
 }
-
-// anexa um documento (arquivo lido como data URL) ao paciente
-export function addPatientDocument(patientId, file, user) {
-  const patient = getPatient(patientId)
-  assertCanSee(user, patient)
-  if (!patient.documents) {
-    patient.documents = []
-  }
-  const newDocument = {
-    id: crypto.randomUUID(),
-    name: file.name,
-    size: file.size,
-    dataUrl: file.dataUrl,
-    date: today(),
-    uploadedBy: user.name,
-  }
-  patient.documents.push(newDocument)
-  try {
-    save()
-  } catch {
-    // localStorage cheio: desfaz o anexo
-    patient.documents.pop()
-    throw new Error('Não há espaço no navegador para este arquivo. Remova outros documentos e tente de novo.')
-  }
-  return newDocument
+export function editarTriagem(id, respostas) {
+  return chamar('PUT', `/triagens/${id}`, { respostas })
 }
-
-// remove um documento do paciente
-export function removePatientDocument(patientId, documentId, user) {
-  const patient = getPatient(patientId)
-  assertCanSee(user, patient)
-  patient.documents = patient.documents.filter((d) => d.id !== documentId)
-  save()
-}
-
-function userName(id) {
-  const user = db.users.find((u) => u.id === id)
-  return user.name
-}
-
-// junta o paciente e o nome do profissional na triagem
-function withRefs(screening) {
-  return {
-    ...screening,
-    patient: getPatient(screening.patientId),
-    professional: userName(screening.professionalId),
-  }
-}
-
-// lista as triagens visíveis para o usuário
-export function listScreenings(user) {
-  const screeningsWithRefs = db.screenings.map(withRefs)
-  const visibleScreenings = screeningsWithRefs.filter((s) => canSee(user, s.patient))
-  visibleScreenings.sort(byDateDesc)
-  return visibleScreenings
-}
-
-// lista as triagens de um paciente
-export function listPatientScreenings(patientId) {
-  const patientScreenings = db.screenings.filter((s) => s.patientId === patientId)
-  const screeningsWithRefs = patientScreenings.map(withRefs)
-  screeningsWithRefs.sort(byDateDesc)
-  return screeningsWithRefs
-}
-
-export function getScreening(id) {
-  const screening = db.screenings.find((s) => s.id === id)
-  // triagem não encontrada
-  if (!screening) {
-    return undefined
-  }
-  return withRefs(screening)
-}
-
-// calcula a pontuação conforme o sexo do paciente
-function evaluate(patientId, answers) {
-  const patient = getPatient(patientId)
-  const sex = patient.sex
-  return {
-    answers: answers,
-    score: calculateScore(answers.signs, sex),
-    threshold: THRESHOLDS[sex],
-  }
-}
-
-// registra uma nova triagem com a data de hoje
-export function createScreening(patientId, answers, user) {
-  const screening = {
-    id: crypto.randomUUID(),
-    patientId: patientId,
-    professionalId: user.id,
-    date: today(),
-    // adiciona answers, score e threshold
-    ...evaluate(patientId, answers),
-  }
-  db.screenings.push(screening)
-  save()
-  return screening
-}
-
-// edita a triagem e recalcula a pontuação
-export function updateScreening(id, answers, user) {
-  assertAdmin(user)
-  const screening = db.screenings.find((s) => s.id === id)
-  const newResult = evaluate(screening.patientId, answers)
-  Object.assign(screening, newResult, { updatedBy: user.id, updatedAt: today() })
-  save()
-}
-
-export function deleteScreening(id, user) {
-  assertAdmin(user)
-  db.screenings = db.screenings.filter((s) => s.id !== id)
-  save()
+export function excluirTriagem(id) {
+  return chamar('DELETE', `/triagens/${id}`)
 }

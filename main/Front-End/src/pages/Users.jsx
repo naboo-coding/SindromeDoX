@@ -1,12 +1,11 @@
 // tela de gerenciamento de usuários (só admin)
-import { useState } from 'react'
-import { listUsers, saveUser, toggleUser } from '../services/api'
-import PageHeader from '../components/PageHeader'
-import { ROLE_LABEL } from '../utils/format'
+import { useEffect, useState } from 'react'
+import { criarUsuario, editarUsuario, listarUsuarios, mudarAtivo } from '../services/api'
+import { PageHeader } from '../components'
+import { ROLE_LABEL } from '../utils'
 
 export default function Users() {
-  // carrega a lista de usuários
-  const [users, setUsers] = useState(listUsers)
+  const [users, setUsers] = useState([])
 
   // usuário aberto no modal (null = modal fechado)
   const [editing, setEditing] = useState(null)
@@ -15,19 +14,27 @@ export default function Users() {
   // campos do formulário
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState('professional')
+  const [role, setRole] = useState('profissional')
   const [password, setPassword] = useState('')
 
+  // carrega os usuários do back
   function refreshUsers() {
-    setUsers(listUsers())
+    listarUsuarios()
+      .then((dados) => setUsers(dados))
+      .catch((err) => alert(err.message))
   }
+
+  // busca a lista quando a tela abre
+  useEffect(() => {
+    refreshUsers()
+  }, [])
 
   // abre o formulário para criar ou editar o usuário
   function openForm(user) {
     setError('')
-    setName(user.name ?? '')
+    setName(user.nome ?? '')
     setEmail(user.email ?? '')
-    setRole(user.role ?? 'professional')
+    setRole(user.perfil ?? 'profissional')
     // senha sempre começa vazia
     setPassword('')
     setEditing(user)
@@ -37,11 +44,16 @@ export default function Users() {
     setEditing(null)
   }
 
-  // salva o usuário (cria ou atualiza)
-  function handleSubmit(event) {
+  // salva o usuário no back (cria ou atualiza)
+  async function handleSubmit(event) {
     event.preventDefault()
+    const dados = { nome: name, email, perfil: role, senha: password }
     try {
-      saveUser({ name, email, role, password, id: editing.id })
+      if (editing.id_usuario) {
+        await editarUsuario(editing.id_usuario, dados)
+      } else {
+        await criarUsuario(dados)
+      }
       closeForm()
       refreshUsers()
     } catch (err) {
@@ -50,13 +62,14 @@ export default function Users() {
   }
 
   // ativa ou desativa o usuário
-  function handleToggle(id) {
-    toggleUser(id)
-    refreshUsers()
+  function handleToggle(user) {
+    mudarAtivo(user.id_usuario, !user.ativo)
+      .then(() => refreshUsers())
+      .catch((err) => alert(err.message))
   }
 
   const isFormOpen = editing !== null
-  const isEditingExistingUser = isFormOpen && Boolean(editing.id)
+  const isEditingExistingUser = isFormOpen && Boolean(editing.id_usuario)
 
   const formTitle = isEditingExistingUser ? 'Editar usuário' : 'Novo usuário'
   const passwordLabel = isEditingExistingUser ? 'Nova senha (opcional)' : 'Senha provisória'
@@ -81,21 +94,21 @@ export default function Users() {
           </thead>
           <tbody>
             {users.map((user) => {
-              const badgeTone = user.active ? 'success' : 'neutral'
-              const statusText = user.active ? 'Ativo' : 'Inativo'
-              const toggleText = user.active ? 'Desativar' : 'Ativar'
+              const badgeTone = user.ativo ? 'success' : 'neutral'
+              const statusText = user.ativo ? 'Ativo' : 'Inativo'
+              const toggleText = user.ativo ? 'Desativar' : 'Ativar'
 
               return (
-                <tr key={user.id}>
-                  <td>{user.name}</td>
+                <tr key={user.id_usuario}>
+                  <td>{user.nome}</td>
                   <td>{user.email}</td>
-                  <td>{ROLE_LABEL[user.role]}</td>
+                  <td>{ROLE_LABEL[user.perfil]}</td>
                   <td>
                     <span className={`badge badge-${badgeTone}`}>{statusText}</span>
                   </td>
                   <td className="actions">
                     <button className="link-btn" onClick={() => openForm(user)}>Editar</button>
-                    <button className="link-btn" onClick={() => handleToggle(user.id)}>{toggleText}</button>
+                    <button className="link-btn" onClick={() => handleToggle(user)}>{toggleText}</button>
                   </td>
                 </tr>
               )
@@ -139,7 +152,9 @@ export default function Users() {
             <div className="field">
               <label htmlFor="role">Perfil</label>
               <select id="role" name="role" className="input" value={role} onChange={(e) => setRole(e.target.value)}>
-                <option value="professional">Profissional</option>
+                {/* responsável se cadastra sozinho, então só aparece ao editar */}
+                {isEditingExistingUser && <option value="responsavel">Responsável</option>}
+                <option value="profissional">Profissional</option>
                 <option value="admin">Administrador</option>
               </select>
             </div>

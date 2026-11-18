@@ -1,71 +1,98 @@
 // detalhes do paciente e suas avaliações
-import { useState } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
-  addPatientDocument,
-  canSee,
-  deletePatient,
-  deleteScreening,
-  getPatient,
-  listPatientScreenings,
-  removePatientDocument,
-  savePatientObservations,
+  buscarPaciente,
+  enviarDocumento,
+  excluirDocumento,
+  excluirPaciente,
+  excluirTriagem,
+  linkDocumento,
+  listarDocumentos,
+  listarTriagensDoPaciente,
+  salvarObservacoes,
 } from '../services/api'
-import { CONTACT_FIELDS, PERSONAL_FIELDS } from '../data/patientFields'
-import PageHeader from '../components/PageHeader'
-import StatusBadge from '../components/StatusBadge'
-import { SEX_LABEL, age, formatDate, formatScore } from '../utils/format'
+import { CONTACT_FIELDS, PERSONAL_FIELDS, RESPONSAVEL_FIELDS } from '../data'
+import { PageHeader, StatusBadge } from '../components'
+import { SEX_LABEL, age, formatContact, formatDate, formatScore } from '../utils'
 
 // mesmos campos do formulário
 const ALL_FIELDS = [...PERSONAL_FIELDS, ...CONTACT_FIELDS]
+
+// pega o valor no paciente ou no responsável
+function fieldValue(patient, name) {
+  const responsavelKey = RESPONSAVEL_FIELDS[name]
+  if (responsavelKey) return patient.responsavel?.[responsavelKey]
+  return patient[name]
+}
 
 // formata o valor para exibir
 function displayValue(field, value) {
   if (!value) return '—'
   if (field.type === 'date') return formatDate(value)
-  if (field.options) {
-    // mostra o texto da opção
-    const option = field.options.find(([optionValue]) => optionValue === value)
-    return option[1]
-  }
-  return value
+  if (field.name === 'sexo_biologico') return SEX_LABEL[value]
+  return formatContact(field.name, value)
 }
 
 export default function PatientDetail() {
   const { id } = useParams()
-  const { user } = useAuth()
+  const { usuario } = useAuth()
   const navigate = useNavigate()
+  const [patient, setPatient] = useState(null)
   // avaliações do paciente
-  const [screenings, setScreenings] = useState(() => listPatientScreenings(id))
-  const patient = getPatient(id)
+  const [screenings, setScreenings] = useState([])
   // só admin pode editar e excluir
-  const isAdmin = user.role === 'admin'
+  const isAdmin = usuario.perfil === 'admin'
 
-  // paciente inexistente ou de outro profissional volta para a lista
-  if (!patient || !canSee(user, patient)) {
-    return <Navigate to="/pacientes" replace />
+  // carrega as avaliações do paciente
+  function loadScreenings() {
+    listarTriagensDoPaciente(id).then(setScreenings)
   }
 
+  // carrega o paciente do back
+  useEffect(() => {
+    buscarPaciente(id)
+      .then((data) => {
+        setPatient(data)
+        loadScreenings()
+      })
+      .catch((err) => {
+        // paciente inexistente ou sem acesso volta para a lista
+        if (err.status === 403 || err.status === 404) navigate('/pacientes', { replace: true })
+      })
+  }, [id])
+
+  // espera o paciente carregar
+  if (!patient) return null
+
   // exclui o paciente e volta para a lista
-  function handleDeletePatient() {
-    if (!window.confirm(`Excluir ${patient.name} e todas as avaliações?`)) return
-    deletePatient(id, user)
-    navigate('/pacientes')
+  async function handleDeletePatient() {
+    if (!window.confirm(`Excluir ${patient.nome} e todas as avaliações?`)) return
+    try {
+      await excluirPaciente(id)
+      navigate('/pacientes')
+    } catch (err) {
+      window.alert(err.message)
+    }
   }
 
   // exclui a avaliação e atualiza a tabela
-  function handleDeleteScreening(screeningId) {
+  async function handleDeleteScreening(screeningId) {
     if (!window.confirm('Excluir esta avaliação?')) return
-    deleteScreening(screeningId, user)
-    setScreenings(listPatientScreenings(id))
+    try {
+      await excluirTriagem(screeningId)
+      loadScreenings()
+    } catch (err) {
+      window.alert(err.message)
+    }
   }
 
-  const subtitle = `${age(patient.birthDate)} anos · ${SEX_LABEL[patient.sex]}`
+  const subtitle = `${age(patient.data_nascimento)} anos · ${SEX_LABEL[patient.sexo_biologico]}`
 
   return (
     <>
-      <PageHeader crumbs={['Pacientes', patient.name]} title={patient.name} subtitle={subtitle}>
+      <PageHeader crumbs={['Pacientes', patient.nome]} title={patient.nome} subtitle={subtitle}>
         <div className="header-actions">
           {isAdmin && <button className="btn btn-outline btn-danger" onClick={handleDeletePatient}>Excluir</button>}
           {isAdmin && <Link to={`/pacientes/${id}/editar`} className="btn btn-outline">Editar cadastro</Link>}
@@ -79,13 +106,13 @@ export default function PatientDetail() {
           {ALL_FIELDS.map((field) => (
             <div key={field.name}>
               <dt>{field.label}</dt>
-              <dd>{displayValue(field, patient[field.name])}</dd>
+              <dd>{displayValue(field, fieldValue(patient, field.name))}</dd>
             </div>
           ))}
         </dl>
       </section>
 
-      <PatientNotes patient={patient} user={user} />
+      <PatientNotes patient={patient} />
 
       <h2 className="section-title section-gap">Avaliações</h2>
       <div className="table-wrap">
@@ -101,15 +128,15 @@ export default function PatientDetail() {
           </thead>
           <tbody>
             {screenings.map((screening) => (
-              <tr key={screening.id}>
-                <td>{formatDate(screening.date)}</td>
-                <td>{screening.professional}</td>
-                <td>{formatScore(screening.score)}</td>
-                <td><StatusBadge screening={screening} /></td>
+              <tr key={screening.id_triagem}>
+                <td>{formatDate(screening.hora_triagem)}</td>
+                <td>{screening.aplicada_por}</td>
+                <td>{formatScore(screening.pontuacao)}</td>
+                <td><StatusBadge status={screening.status} /></td>
                 <td className="actions">
-                  <Link to={`/triagens/${screening.id}`}>Ver</Link>
-                  {isAdmin && <Link to={`/triagem?avaliacao=${screening.id}`}>Editar</Link>}
-                  {isAdmin && <button className="link-btn link-danger" onClick={() => handleDeleteScreening(screening.id)}>Excluir</button>}
+                  <Link to={`/triagens/${screening.id_triagem}`}>Ver</Link>
+                  {isAdmin && <Link to={`/triagem?avaliacao=${screening.id_triagem}`}>Editar</Link>}
+                  {isAdmin && <button className="link-btn link-danger" onClick={() => handleDeleteScreening(screening.id_triagem)}>Excluir</button>}
                 </td>
               </tr>
             ))}
@@ -141,21 +168,36 @@ function formatSize(size) {
 }
 
 // observações e documentos anexados do paciente
-function PatientNotes({ patient, user }) {
-  const [observations, setObservations] = useState(patient.observations || '')
-  const [documents, setDocuments] = useState(patient.documents || [])
+function PatientNotes({ patient }) {
+  const patientId = patient.id_paciente
+  const [observations, setObservations] = useState(patient.observacoes || '')
+  const [documents, setDocuments] = useState([])
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  // salva o texto das observações
-  function handleSaveObservations() {
-    savePatientObservations(patient.id, observations, user)
-    setError('')
-    setMessage('Observações salvas.')
+  // carrega os documentos do back
+  function loadDocuments() {
+    listarDocumentos(patientId).then(setDocuments)
   }
 
-  // valida, lê e anexa o arquivo escolhido
-  function handleFileChange(event) {
+  useEffect(() => {
+    loadDocuments()
+  }, [patientId])
+
+  // salva o texto das observações
+  async function handleSaveObservations() {
+    setMessage('')
+    setError('')
+    try {
+      await salvarObservacoes(patientId, observations)
+      setMessage('Observações salvas.')
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  // valida e envia o arquivo escolhido
+  async function handleFileChange(event) {
     const file = event.target.files[0]
     // limpa o campo para poder escolher o mesmo arquivo de novo
     event.target.value = ''
@@ -172,27 +214,27 @@ function PatientNotes({ patient, user }) {
       return
     }
 
-    const reader = new FileReader()
-    // quando terminar de ler, salva o arquivo no paciente
-    reader.onload = () => {
-      try {
-        addPatientDocument(patient.id, { name: file.name, size: file.size, dataUrl: reader.result }, user)
-        setDocuments([...patient.documents])
-        setMessage('Documento anexado.')
-      } catch (err) {
-        setError(err.message)
-      }
+    try {
+      await enviarDocumento(patientId, file)
+      loadDocuments()
+      setMessage('Documento anexado.')
+    } catch (err) {
+      setError(err.message)
     }
-    reader.readAsDataURL(file)
   }
 
   // remove o documento depois de confirmar
-  function handleRemoveDocument(doc) {
-    if (!window.confirm(`Remover ${doc.name}?`)) return
-    removePatientDocument(patient.id, doc.id, user)
-    setDocuments([...patient.documents])
+  async function handleRemoveDocument(doc) {
+    if (!window.confirm(`Remover ${doc.nome_arquivo}?`)) return
+    setMessage('')
     setError('')
-    setMessage('Documento removido.')
+    try {
+      await excluirDocumento(doc.id_documento)
+      loadDocuments()
+      setMessage('Documento removido.')
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   return (
@@ -217,10 +259,10 @@ function PatientNotes({ patient, user }) {
         {documents.length === 0 && <p className="muted small">Nenhum documento anexado.</p>}
         <ul className="document-list">
           {documents.map((doc) => (
-            <li key={doc.id}>
+            <li key={doc.id_documento}>
               <div>
-                <a href={doc.dataUrl} download={doc.name}>{doc.name}</a>
-                <p className="muted small">{formatSize(doc.size)} · {formatDate(doc.date)} · {doc.uploadedBy}</p>
+                <a href={linkDocumento(doc.id_documento)} download={doc.nome_arquivo}>{doc.nome_arquivo}</a>
+                <p className="muted small">{formatSize(doc.tamanho_bytes)} · {formatDate(doc.enviado_em)} · {doc.enviado_por}</p>
               </div>
               <button className="link-btn link-danger" onClick={() => handleRemoveDocument(doc)}>Remover</button>
             </li>

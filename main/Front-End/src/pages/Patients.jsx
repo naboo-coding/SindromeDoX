@@ -1,43 +1,46 @@
 // lista de pacientes com busca, filtro e paginação
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { listPatients } from '../services/api'
-import PageHeader from '../components/PageHeader'
-import StatusBadge from '../components/StatusBadge'
-import { formatDate, formatScore, includesText } from '../utils/format'
-import { screeningStatus } from '../utils/score'
+import { listarPacientes } from '../services/api'
+import { PageHeader, StatusBadge } from '../components'
+import { formatDate, formatScore, includesText } from '../utils'
 
 const PAGE_SIZE = 5
 
 export default function Patients() {
-  const { user } = useAuth()
+  const [allPatients, setAllPatients] = useState([])
   const [search, setSearch] = useState('')
   const [order, setOrder] = useState('desc')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
 
+  // carrega os pacientes do back
+  useEffect(() => {
+    listarPacientes().then(setAllPatients)
+  }, [])
+
   function matchesSearch(patient) {
-    return includesText(patient.name, search) || includesText(patient.cpf, search)
+    // cpf é o do responsável
+    const cpf = patient.responsavel?.cpf ?? ''
+    return includesText(patient.nome, search) || includesText(cpf, search)
   }
 
   function matchesStatus(patient) {
     if (!status) return true
     // sem triagem não tem resultado
-    if (!patient.lastScreening) return false
-    return screeningStatus(patient.lastScreening) === status
+    if (!patient.ultima_triagem) return false
+    return patient.ultima_triagem.status === status
   }
 
   function compareByLastScreening(a, b) {
     // sem triagem usa data vazia
-    const dateA = a.lastScreening?.date ?? ''
-    const dateB = b.lastScreening?.date ?? ''
+    const dateA = a.ultima_triagem?.hora_triagem ?? ''
+    const dateB = b.ultima_triagem?.hora_triagem ?? ''
     const difference = dateA.localeCompare(dateB)
     return order === 'desc' ? -difference : difference
   }
 
   // busca, filtra e ordena
-  const allPatients = listPatients(user)
   const searchedPatients = allPatients.filter(matchesSearch)
   const filteredPatients = searchedPatients.filter(matchesStatus)
   const patients = filteredPatients.sort(compareByLastScreening)
@@ -80,9 +83,9 @@ export default function Patients() {
         </select>
         <select className="input" value={status} onChange={handleStatusChange}>
           <option value="">Todos os resultados</option>
-          <option value="met">Critério atingido</option>
-          <option value="notMet">Critério não atingido</option>
-          <option value="pending">Cálculo pendente</option>
+          <option value="atingido">Critério atingido</option>
+          <option value="nao_atingido">Critério não atingido</option>
+          <option value="pendente">Cálculo pendente</option>
         </select>
       </div>
 
@@ -99,22 +102,22 @@ export default function Patients() {
           </thead>
           <tbody>
             {visible.map((patient) => (
-              <tr key={patient.id}>
-                <td>{patient.name}</td>
-                <td>{formatDate(patient.birthDate)}</td>
-                <td>{patient.lastScreening ? formatDate(patient.lastScreening.date) : '—'}</td>
+              <tr key={patient.id_paciente}>
+                <td>{patient.nome}</td>
+                <td>{formatDate(patient.data_nascimento)}</td>
+                <td>{patient.ultima_triagem ? formatDate(patient.ultima_triagem.hora_triagem) : '—'}</td>
                 <td>
-                  {patient.lastScreening ? (
+                  {patient.ultima_triagem ? (
                     <span className="status">
-                      <StatusBadge screening={patient.lastScreening} /> {formatScore(patient.lastScreening.score)}
+                      <StatusBadge status={patient.ultima_triagem.status} /> {formatScore(patient.ultima_triagem.pontuacao)}
                     </span>
                   ) : (
                     <span className="muted">Sem triagem</span>
                   )}
                 </td>
                 <td className="actions">
-                  <Link to={`/pacientes/${patient.id}`}>Ver</Link>
-                  <Link to={`/triagem?paciente=${patient.id}`}>Nova triagem</Link>
+                  <Link to={`/pacientes/${patient.id_paciente}`}>Ver</Link>
+                  <Link to={`/triagem?paciente=${patient.id_paciente}`}>Nova triagem</Link>
                 </td>
               </tr>
             ))}

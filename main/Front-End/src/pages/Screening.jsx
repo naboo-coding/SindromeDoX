@@ -1,18 +1,17 @@
 // tela de triagem em 4 etapas
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { canSee, createScreening, getPatient, getScreening, listPatients, updateScreening } from '../services/api'
-import { EXTRA_SIGNS, UNSCORED_BEHAVIOR_SIGNS, UNSCORED_PHYSICAL_SIGNS, visibleQuestions } from '../data/questions'
-import PageHeader from '../components/PageHeader'
-import { age } from '../utils/format'
-import { isCalculationReady, symptomsFor } from '../utils/score'
+import { buscarChecklist, buscarPaciente, buscarTriagem, criarTriagem, editarTriagem, listarPacientes } from '../services/api'
+import { EXTRA_SIGNS, UNSCORED_BEHAVIOR_SIGNS, UNSCORED_PHYSICAL_SIGNS, visibleQuestions } from '../data'
+import { PageHeader } from '../components'
+import { age } from '../utils'
 
 const STEPS = ['Histórico familiar', 'Sinais físicos', 'Comportamento e desenvolvimento', 'Revisão']
 
 export default function Screening() {
   const [params, setParams] = useSearchParams()
-  const { user } = useAuth()
+  const { usuario } = useAuth()
   const patientId = params.get('paciente')
   const screeningId = params.get('avaliacao')
 
@@ -22,27 +21,26 @@ export default function Screening() {
 
   // edita, cria nova ou escolhe o paciente
   if (screeningId) {
-    const screening = getScreening(screeningId)
-    // só admin edita, e a triagem precisa existir
-    if (user.role !== 'admin' || !screening) {
+    // só admin edita
+    if (usuario.perfil !== 'admin') {
       return <Navigate to="/pacientes" replace />
     }
-    return <ScreeningForm key={screeningId} patient={screening.patient} screening={screening} />
+    return <ScreeningForm key={screeningId} screeningId={screeningId} />
   }
   if (patientId) {
-    const patient = getPatient(patientId)
-    // paciente inexistente ou de outro profissional volta para a lista
-    if (!patient || !canSee(user, patient)) {
-      return <Navigate to="/pacientes" replace />
-    }
-    return <ScreeningForm key={patientId} patient={patient} />
+    return <ScreeningForm key={patientId} patientId={patientId} />
   }
   return <PatientPicker onPick={handlePickPatient} />
 }
 
 // escolha do paciente
 function PatientPicker({ onPick }) {
-  const { user } = useAuth()
+  const [patients, setPatients] = useState([])
+
+  // carrega os pacientes do back
+  useEffect(() => {
+    listarPacientes().then((dados) => setPatients(dados))
+  }, [])
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -58,7 +56,7 @@ function PatientPicker({ onPick }) {
           <label htmlFor="patient">Paciente</label>
           <select id="patient" name="patient" className="input" required defaultValue="">
             <option value="" disabled>Selecione</option>
-            {listPatients(user).map((patient) => <option key={patient.id} value={patient.id}>{patient.name}</option>)}
+            {patients.map((patient) => <option key={patient.id_paciente} value={patient.id_paciente}>{patient.nome}</option>)}
           </select>
         </div>
         <button className="btn">Iniciar triagem</button>
@@ -68,32 +66,56 @@ function PatientPicker({ onPick }) {
   )
 }
 
-// questionário da triagem, screening só vem na edição
-function ScreeningForm({ patient, screening }) {
-  const { user } = useAuth()
+// questionário da triagem, screeningId só vem na edição
+function ScreeningForm({ patientId, screeningId }) {
   const navigate = useNavigate()
 
-  let initialAnswers = { signs: [], otherText: '', observations: '' }
-  if (screening && screening.answers) {
-    initialAnswers = screening.answers
-  }
-
+  const [patient, setPatient] = useState(null)
+  const [checklist, setChecklist] = useState(null)
   const [step, setStep] = useState(0)
-  const [answers, setAnswers] = useState(initialAnswers)
+  const [answers, setAnswers] = useState({ signs: [], otherText: '', observations: '' })
   const [error, setError] = useState('')
+
+  // carrega o paciente (ou a triagem, na edição) e o checklist do back
+  useEffect(() => {
+    async function load() {
+      try {
+        if (screeningId) {
+          const triagem = await buscarTriagem(screeningId)
+          setPatient({ ...triagem.paciente, id_paciente: triagem.id_paciente })
+          setAnswers(triagem.respostas)
+        } else {
+          setPatient(await buscarPaciente(patientId))
+        }
+        setChecklist(await buscarChecklist())
+      } catch (err) {
+        // sem acesso ou não encontrado volta para a lista
+        if (err.status === 403 || err.status === 404) {
+          navigate('/pacientes', { replace: true })
+        }
+      }
+    }
+    load()
+  }, [patientId, screeningId, navigate])
+
+  // espera os dados chegarem
+  if (!patient || !checklist) {
+    return null
+  }
 
   // perguntas visíveis conforme as respostas
   const questions = visibleQuestions(answers)
 
-  // sintomas conforme o sexo do paciente
-  const symptoms = symptomsFor(patient.sex)
-  const scoredPhysicalSigns = symptoms.filter((symptom) => symptom.group === 'physical')
+  // sintomas do checklist que valem para o sexo do paciente
+  const sex = patient.sexo_biologico
+  const symptoms = checklist.sintomas.filter((symptom) => symptom.sexo_restrito === null || symptom.sexo_restrito === sex)
+  const scoredPhysicalSigns = symptoms.filter((symptom) => symptom.grupo === 'fisico')
   const physicalSigns = [...scoredPhysicalSigns, ...UNSCORED_PHYSICAL_SIGNS]
-  const behaviorOnlySigns = symptoms.filter((symptom) => symptom.group === 'behavior')
+  const behaviorOnlySigns = symptoms.filter((symptom) => symptom.grupo === 'comportamento')
   const behaviorSigns = [...behaviorOnlySigns, ...UNSCORED_BEHAVIOR_SIGNS, ...EXTRA_SIGNS]
 
   // sem pesos configurados salva sem pontuação
-  const ready = isCalculationReady(patient.sex)
+  const ready = checklist.pronto[sex]
 
   const isFamilyStep = step === 0
   const isSignsStep = step === 1 || step === 2
@@ -109,7 +131,7 @@ function ScreeningForm({ patient, screening }) {
   const progressPercent = ((step + 1) / STEPS.length) * 100
 
   let finishLabel = 'Salvar avaliação'
-  if (screening) {
+  if (screeningId) {
     finishLabel = 'Salvar alterações'
   } else if (ready) {
     finishLabel = 'Calcular resultado'
@@ -119,7 +141,7 @@ function ScreeningForm({ patient, screening }) {
   function describeCheckedSigns(signList) {
     let count = 0
     for (const id of answers.signs) {
-      const isInList = signList.some((sign) => sign.id === id)
+      const isInList = signList.some((sign) => sign.codigo === id)
       if (id !== 'none' && isInList) {
         count++
       }
@@ -193,23 +215,28 @@ function ScreeningForm({ patient, screening }) {
     }
   }
 
-  // salva a triagem e abre o resultado
-  function finish() {
-    if (screening) {
-      updateScreening(screening.id, answers, user)
-      navigate(`/triagens/${screening.id}`)
-      return
+  // salva a triagem no back e abre o resultado
+  async function finish() {
+    setError('')
+    try {
+      if (screeningId) {
+        await editarTriagem(screeningId, answers)
+        navigate(`/triagens/${screeningId}`)
+        return
+      }
+      const triagem = await criarTriagem(patient.id_paciente, answers)
+      navigate(`/triagens/${triagem.id_triagem}`)
+    } catch (err) {
+      setError(err.message)
     }
-    const newScreening = createScreening(patient.id, answers, user)
-    navigate(`/triagens/${newScreening.id}`)
   }
 
   return (
     <>
       <PageHeader
-        crumbs={['Pacientes', patient.name, 'Triagem']}
-        title={screening ? 'Editar avaliação' : 'Questionário de triagem'}
-        subtitle={`Paciente: ${patient.name} · ${age(patient.birthDate)} anos`}
+        crumbs={['Pacientes', patient.nome, 'Triagem']}
+        title={screeningId ? 'Editar avaliação' : 'Questionário de triagem'}
+        subtitle={`Paciente: ${patient.nome} · ${age(patient.data_nascimento)} anos`}
       />
       <div className="card">
         <ol className="steps">
@@ -246,9 +273,9 @@ function ScreeningForm({ patient, screening }) {
             <legend>Assinale os sinais observados</legend>
             <div className="checks">
               {signsToShow.map((sign) => (
-                <label key={sign.id} className="choice">
-                  <input type="checkbox" checked={answers.signs.includes(sign.id)} onChange={() => toggleSign(sign.id)} />
-                  {sign.label}
+                <label key={sign.codigo} className="choice">
+                  <input type="checkbox" checked={answers.signs.includes(sign.codigo)} onChange={() => toggleSign(sign.codigo)} />
+                  {sign.rotulo}
                 </label>
               ))}
             </div>

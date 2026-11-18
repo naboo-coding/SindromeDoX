@@ -39,3 +39,12 @@ class Config:
 
     # Define se o modo de depuração estará ativado.
     DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+
+    # Endereço do Front-End, usado nos links de confirmação de e-mail e nova senha.
+    FRONT_URL = os.getenv("FRONT_URL", "http://localhost:5173")
+
+    # Pasta onde ficam os documentos enviados dos pacientes.
+    UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(os.path.dirname(__file__), "uploads"))
+
+    # Versão atual do termo de consentimento (LGPD).
+    TERMO_LGPD_VERSAO = "v1"

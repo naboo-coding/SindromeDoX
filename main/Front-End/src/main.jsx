@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './context/AuthContext'
-import { enablePortugueseValidationMessages } from './utils/validationMessages'
+import { enablePortugueseValidationMessages } from './utils'
 import './styles/global.css'
 
 // mensagens de validação em português
