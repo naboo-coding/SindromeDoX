@@ -1,10 +1,6 @@
-
 from contextlib import contextmanager
-
 from mysql.connector import pooling
-
 from config import Config
-
 
 # Modo estrito utilizado nas sessões do MySQL.
 SQL_MODE = (
@@ -13,7 +9,6 @@ SQL_MODE = (
 )
 
 _pool = None
-
 
 # Criação do pool das primeiras chamadas
 def _get_pool():
@@ -34,20 +29,16 @@ def _get_pool():
             sql_mode=SQL_MODE,
             autocommit=False,
         )
-
     return _pool
-
 
 # Conexão devolvida ao pool
 @contextmanager
 def conexao():
     con = _get_pool().get_connection()
-
     try:
         yield con
     finally:
         con.close()
-
 
 # Confirma as operações ou então desfaz as alterações em caso de erro
 @contextmanager
@@ -60,7 +51,6 @@ def transacao():
             con.rollback()
             raise
 
-
 # vai consultar todos os registros e daí retornar uma lista de dicionários.
 def consultar_todos(sql, params=(), con=None):
     if con is None:
@@ -68,19 +58,16 @@ def consultar_todos(sql, params=(), con=None):
             return consultar_todos(sql, params, c)
 
     cur = con.cursor(dictionary=True)
-
     try:
         cur.execute(sql, params)
         return cur.fetchall()
     finally:
         cur.close()
 
-
 # Consulta um registro, se não achar vai retorna None
 def consultar_um(sql, params=(), con=None):
     linhas = consultar_todos(sql, params, con)
     return linhas[0] if linhas else None
-
 
 # vai inserir um registro e retorna o identificador.
 def inserir(sql, params=(), con=None):
@@ -89,13 +76,11 @@ def inserir(sql, params=(), con=None):
             return inserir(sql, params, c)
 
     cur = con.cursor()
-
     try:
         cur.execute(sql, params)
         return cur.lastrowid
     finally:
         cur.close()
-
 
 # Executa alterações e retorna a quantidade de linhas afetadas.
 def executar(sql, params=(), con=None):
@@ -104,7 +89,6 @@ def executar(sql, params=(), con=None):
             return executar(sql, params, c)
 
     cur = con.cursor()
-
     try:
         cur.execute(sql, params)
         return cur.rowcount

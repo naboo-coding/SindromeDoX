@@ -1,9 +1,7 @@
 from flask import Flask
 from flask_cors import CORS
-
 from config import Config
 from routes.saude import bp as saude_bp
-
 
 def create_app():
     app = Flask(__name__)
@@ -11,7 +9,6 @@ def create_app():
     CORS(app, origins=Config.CORS_ORIGINS)
     app.register_blueprint(saude_bp)
     return app
-
 
 app = create_app()
 
