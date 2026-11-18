@@ -8,10 +8,10 @@ USE SindromeX;
 CREATE TABLE pessoa (
     id_pessoa INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(130) NOT NULL,
-    cpf CHAR(11) NOT NULL UNIQUE,            -- somente dígitos
-    cep CHAR(8),                             -- somente dígitos
+    cpf CHAR(11) NOT NULL UNIQUE,
+    cep CHAR(8),
     email VARCHAR(150) NOT NULL UNIQUE,
-    senha_hash VARCHAR(255) NOT NULL,        -- hash nunca a senha pura
+    senha_hash VARCHAR(255) NOT NULL,
     ativo BOOLEAN NOT NULL DEFAULT TRUE,     -- soft delete
     criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

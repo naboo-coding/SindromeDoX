@@ -1,4 +1,3 @@
-"""Ponto de entrada da API do Sistema de Triagem da Síndrome do X Frágil."""
 from flask import Flask
 from flask_cors import CORS
 
@@ -17,5 +16,5 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    # Servidor de desenvolvimento. Em produção, usar um servidor WSGI (ex.: gunicorn).
+    # Servidor de desenvolvimento
     app.run(host="127.0.0.1", port=5000, debug=Config.DEBUG)

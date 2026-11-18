@@ -1,8 +1,3 @@
-"""Confere se o backend consegue falar com o banco e se o banco está como esperado.
-
-Uso (dentro de Back-End/, com o .env preenchido):
-    python testar_conexao.py
-"""
 import sys
 
 from config import Config

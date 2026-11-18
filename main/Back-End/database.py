@@ -1,6 +1,4 @@
 
-"""Gerencia as conexões e operações com o banco de dados."""
-
 from contextlib import contextmanager
 
 from mysql.connector import pooling
@@ -17,7 +15,7 @@ SQL_MODE = (
 _pool = None
 
 
-# Criação do pool de conexões na primeira chamada.
+# Criação do pool das primeiras chamadas
 def _get_pool():
     global _pool
 
@@ -40,7 +38,7 @@ def _get_pool():
     return _pool
 
 
-# Conexão devolvida ao pool após o uso.
+# Conexão devolvida ao pool
 @contextmanager
 def conexao():
     con = _get_pool().get_connection()
@@ -51,7 +49,7 @@ def conexao():
         con.close()
 
 
-# Confirma as operações ou desfaz as alterações em caso de erro.
+# Confirma as operações ou então desfaz as alterações em caso de erro
 @contextmanager
 def transacao():
     with conexao() as con:
@@ -63,7 +61,7 @@ def transacao():
             raise
 
 
-# Consulta todos os registros e retorna uma lista de dicionários.
+# vai consultar todos os registros e daí retornar uma lista de dicionários.
 def consultar_todos(sql, params=(), con=None):
     if con is None:
         with conexao() as c:
@@ -78,13 +76,13 @@ def consultar_todos(sql, params=(), con=None):
         cur.close()
 
 
-# Consulta um registro ou retorna None quando não encontrado.
+# Consulta um registro, se não achar vai retorna None
 def consultar_um(sql, params=(), con=None):
     linhas = consultar_todos(sql, params, con)
     return linhas[0] if linhas else None
 
 
-# Insere um registro e retorna seu identificador.
+# vai inserir um registro e retorna o identificador.
 def inserir(sql, params=(), con=None):
     if con is None:
         with transacao() as c:

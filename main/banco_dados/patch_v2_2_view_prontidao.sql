@@ -1,9 +1,3 @@
--- =====================================================================
--- PATCH v2.2 — corrige vw_checklist_prontidao
--- Para quem JÁ criou o banco com a v2 / v2.1: rode só este arquivo.
--- (Quem recriar o banco com o sindromeX.sql v2.2 não precisa dele.)
--- Falha corrigida: uma versão de checklist sem nenhum sintoma aparecia como "pronta".
--- =====================================================================
 USE SindromeX;
 
 CREATE OR REPLACE VIEW vw_checklist_prontidao AS
