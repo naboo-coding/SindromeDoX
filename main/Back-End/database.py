@@ -1,19 +1,14 @@
-"""Conexão com o MySQL: pool de conexões e funções de consulta.
 
-Regras deste módulo:
-  * SEMPRE usar parâmetros (%s) nas consultas; nunca montar SQL concatenando
-    texto vindo do usuário (evita SQL injection).
-  * Sessão em modo estrito, igual ao usado nos testes do banco.
-  * Operações que gravam devem rodar dentro de `transacao()`, para que várias
-    gravações relacionadas (ex.: triagem + resultado + auditoria) aconteçam
-    todas ou nenhuma.
-"""
+"""Gerencia as conexões e operações com o banco de dados."""
+
 from contextlib import contextmanager
 
 from mysql.connector import pooling
 
 from config import Config
 
+
+# Modo estrito utilizado nas sessões do MySQL.
 SQL_MODE = (
     "STRICT_ALL_TABLES,NO_ENGINE_SUBSTITUTION,ONLY_FULL_GROUP_BY,"
     "NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO"
@@ -22,9 +17,10 @@ SQL_MODE = (
 _pool = None
 
 
+# Criação do pool de conexões na primeira chamada.
 def _get_pool():
-    """Cria o pool na primeira chamada e reaproveita nas seguintes."""
     global _pool
+
     if _pool is None:
         _pool = pooling.MySQLConnectionPool(
             pool_name="sindromex",
@@ -40,22 +36,24 @@ def _get_pool():
             sql_mode=SQL_MODE,
             autocommit=False,
         )
+
     return _pool
 
 
+# Conexão devolvida ao pool após o uso.
 @contextmanager
 def conexao():
-    """Pega uma conexão do pool e a devolve ao final."""
     con = _get_pool().get_connection()
+
     try:
         yield con
     finally:
-        con.close()  # em conexão de pool, close() devolve ao pool
+        con.close()
 
 
+# Confirma as operações ou desfaz as alterações em caso de erro.
 @contextmanager
 def transacao():
-    """Conexão com commit no sucesso e rollback em qualquer erro."""
     with conexao() as con:
         try:
             yield con
@@ -65,12 +63,14 @@ def transacao():
             raise
 
 
+# Consulta todos os registros e retorna uma lista de dicionários.
 def consultar_todos(sql, params=(), con=None):
-    """SELECT que devolve uma lista de dicionários."""
     if con is None:
         with conexao() as c:
             return consultar_todos(sql, params, c)
+
     cur = con.cursor(dictionary=True)
+
     try:
         cur.execute(sql, params)
         return cur.fetchall()
@@ -78,18 +78,20 @@ def consultar_todos(sql, params=(), con=None):
         cur.close()
 
 
+# Consulta um registro ou retorna None quando não encontrado.
 def consultar_um(sql, params=(), con=None):
-    """SELECT que devolve um dicionário, ou None se não houver linha."""
     linhas = consultar_todos(sql, params, con)
     return linhas[0] if linhas else None
 
 
+# Insere um registro e retorna seu identificador.
 def inserir(sql, params=(), con=None):
-    """INSERT que devolve o id gerado."""
     if con is None:
         with transacao() as c:
             return inserir(sql, params, c)
+
     cur = con.cursor()
+
     try:
         cur.execute(sql, params)
         return cur.lastrowid
@@ -97,12 +99,14 @@ def inserir(sql, params=(), con=None):
         cur.close()
 
 
+# Executa alterações e retorna a quantidade de linhas afetadas.
 def executar(sql, params=(), con=None):
-    """UPDATE/DELETE que devolve a quantidade de linhas afetadas."""
     if con is None:
         with transacao() as c:
             return executar(sql, params, c)
+
     cur = con.cursor()
+
     try:
         cur.execute(sql, params)
         return cur.rowcount
