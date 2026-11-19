@@ -362,6 +362,13 @@ def editar_paciente(usuario, id_paciente):
         (id_paciente,),
     )
 
+    # Trocar o responsável principal (ou definir um, se não havia) exige que quem está editando
+    # confirme o consentimento (LGPD) do novo responsável, como no cadastro do paciente.
+    # Sem a confirmação, nenhum consentimento é registrado.
+    trocou_responsavel = principal is None or principal["email"].lower() != responsavel["email"]
+    if trocou_responsavel and dados.get("consentimento") is not True:
+        return jsonify(erro="Para trocar o responsável, confirme o consentimento (LGPD) do novo responsável."), 400
+
     with transacao() as con:
         executar(
             "UPDATE paciente SET nome = %s, sexo_biologico = %s, data_nascimento = %s, nome_mae = %s, "
@@ -391,6 +398,12 @@ def editar_paciente(usuario, id_paciente):
             id_responsavel = _buscar_ou_criar_responsavel(responsavel, con)
             _vincular(id_paciente, id_responsavel, responsavel["parentesco"], True, con)
             _registrar_consentimento(id_paciente, id_responsavel, usuario["id_usuario"], con)
+            auditoria.registrar(
+                "consentimento.registrar", "paciente", id_paciente,
+                depois={"versao_termo": Config.TERMO_LGPD_VERSAO, "id_titular": id_responsavel,
+                        "coletado_pela_equipe": True},
+                con=con,
+            )
 
         # Atualizo o contato do responsável principal.
         executar(

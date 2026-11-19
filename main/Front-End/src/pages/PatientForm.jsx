@@ -93,6 +93,16 @@ export default function PatientForm() {
     setError('')
     try {
       if (isEditing) {
+        // trocar o e-mail do responsável exige confirmar o consentimento do novo responsável
+        const emailAtual = (patient.responsavel?.email || '').toLowerCase()
+        const trocouResponsavel = data.email.trim().toLowerCase() !== emailAtual
+        if (trocouResponsavel) {
+          if (!data.consentimento_novo) {
+            setError('Para trocar o responsável, confirme o consentimento (LGPD) do novo responsável.')
+            return
+          }
+          body.consentimento = true
+        }
         await editarPaciente(id, body)
         navigate(`/pacientes/${id}`)
         return
@@ -161,6 +171,13 @@ export default function PatientForm() {
           <label className="checkbox-line">
             <input type="checkbox" required />
             Li e aceito o termo de consentimento (LGPD) para o tratamento dos dados deste paciente.
+          </label>
+        )}
+        {/* na edição, o aceite só vale se o e-mail do responsável for trocado */}
+        {isEditing && (
+          <label className="checkbox-line">
+            <input type="checkbox" name="consentimento_novo" />
+            Confirmo que o novo responsável aceitou o termo de consentimento (LGPD). Só é necessário se o e-mail do responsável for alterado.
           </label>
         )}
         {error && <p className="alert alert-error">{error}</p>}

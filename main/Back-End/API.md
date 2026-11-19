@@ -77,7 +77,7 @@ Formato devolvido:
 | `GET /api/pacientes` | logado | Lista os pacientes visíveis |
 | `GET /api/pacientes/<id>` | quem vê | Devolve `404` se não existe ou está inativo, e `403` sem acesso. A consulta pela equipe vai para a auditoria (`paciente.consultar`) |
 | `POST /api/pacientes` | logado | Dados do paciente + `responsavel: {nome, cpf, email, telefone, whatsapp, telefone2, parentesco}` + `consentimento: true` (obrigatório). **Responsável logado:** o vínculo é com ele mesmo; do bloco `responsavel` só vale o `parentesco`. **Equipe:** procura o responsável pelo e-mail; se não existe, cria um contato (perfil `responsavel`, sem senha). Cria o vínculo principal e o consentimento (titular é o responsável; quem registrou é quem está logado). Devolve `201 {id_paciente}` |
-| `PUT /api/pacientes/<id>` | admin | Mesmo corpo do POST, sem o `consentimento`. Se o e-mail do responsável mudar, encerra o vínculo principal antigo e cria o novo |
+| `PUT /api/pacientes/<id>` | admin | Mesmo corpo do POST. Se o e-mail do responsável mudar (ou o paciente não tiver responsável), `consentimento: true` passa a ser **obrigatório** (`400` sem ele): encerra o vínculo principal antigo, cria o novo e registra o consentimento do novo responsável (quem registrou é quem está editando, e a auditoria guarda `consentimento.registrar`). Se o e-mail não mudar, `consentimento` é ignorado |
 | `DELETE /api/pacientes/<id>` | admin | Desativa o paciente e as triagens dele |
 | `PUT /api/pacientes/<id>/observacoes` | quem vê | `{observacoes}` |
 | `GET /api/pacientes/<id>/responsaveis` | quem vê | Lista os vínculos ativos |
